@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  CLIENTE
+  ESTUDIANTE
+  PROFESOR
+  BIBLIOTECARIO
+  ADMIN
+}
+
+enum EstadoPrestamo {
+  ACTIVO
+  DEVUELTO
+  CON_RETRASO
+}
+
+
+model Usuario {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  nombre    String
+  rol       Role     @default(CLIENTE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relación: Un usuario puede tener muchos préstamos
+  prestamos Prestamo[]
+}
+
+model Libro {
+  id            String   @id @default(uuid())
+  titulo        String
+  autor         String
+  anio          Int
+  editorial     String
+  disponibilidad Boolean  @default(true)
+  costoPrestamo Float    @default(0.0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relación inversa para la tabla intermedia
+  prestamos DetallePrestamo[]
+}
+
+model Prestamo {
+  id                 String         @id @default(uuid())
+  usuarioId          String
+  usuario            Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  fechaPrestamo      DateTime       @default(now())
+  fechaMaxDevolucion DateTime
+  fechaDevolucionAt  DateTime?
+  estado             EstadoPrestamo @default(ACTIVO)
+  documentoGarantia  String?        // Documento en garantía registrado por el bibliotecario
+  totalCosto         Float          @default(0.0) // Monto final aplicando los descuentos correspondientes
+  multaAcumulada     Float          @default(0.0) // Gestionado por el bibliotecario/administrador
+  createdAt          DateTime       @default(now())
+
+  // Relación: Un préstamo puede incluir varios libros
+  libros             DetallePrestamo[]
+}
+
+// Tabla intermedia necesaria para soportar préstamos de múltiples libros de golpe
+model DetallePrestamo {
+  id         String   @id @default(uuid())
+  prestamoId String
+  prestamo   Prestamo @relation(fields: [prestamoId], references: [id], onDelete: Cascade)
+  libroId    String
+  libro      Libro    @relation(fields: [libroId], references: [id], onDelete: Cascade)
+}
