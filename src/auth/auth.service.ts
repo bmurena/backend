@@ -1,6 +1,12 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -14,11 +20,15 @@ export class AuthService {
     });
 
     if (!usuario) {
-      throw new UnauthorizedException('Correo o contraseña incorrectos');
+      throw new UnauthorizedException(
+        'Correo o contraseña incorrectos',
+      );
     }
 
     if (usuario.password !== loginDto.password) {
-      throw new UnauthorizedException('Correo o contraseña incorrectos');
+      throw new UnauthorizedException(
+        'Correo o contraseña incorrectos',
+      );
     }
 
     return {
@@ -29,6 +39,38 @@ export class AuthService {
         email: usuario.email,
         rol: usuario.rol,
       },
+    };
+  }
+
+  async register(registerDto: RegisterDto) {
+    const existe = await this.prisma.usuario.findUnique({
+      where: {
+        email: registerDto.email,
+      },
+    });
+
+    if (existe) {
+      throw new BadRequestException(
+        'El correo ya está registrado',
+      );
+    }
+
+    if (
+      registerDto.rol === Role.ADMIN ||
+      registerDto.rol === Role.BIBLIOTECARIO
+    ) {
+      throw new BadRequestException(
+        'No puede registrarse con ese rol',
+      );
+    }
+
+    const usuario = await this.prisma.usuario.create({
+      data: registerDto,
+    });
+
+    return {
+      mensaje: 'Usuario registrado correctamente',
+      usuario,
     };
   }
 }
