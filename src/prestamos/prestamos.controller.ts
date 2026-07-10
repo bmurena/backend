@@ -1,3 +1,4 @@
+import { SolicitarPrestamoDto } from './dto/solicitar-prestamo.dto';
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { PrestamosService } from './prestamos.service';
 import { CreatePrestamoDto } from './dto/create-prestamo.dto';
@@ -20,6 +21,13 @@ export class PrestamosController {
   @Post()
   create(@Body() createPrestamoDto: CreatePrestamoDto) {
     return this.prestamosService.create(createPrestamoDto);
+  }
+
+  @Post("solicitar")
+  solicitar(
+  @Body() dto: SolicitarPrestamoDto,
+  ){
+  return this.prestamosService.solicitar(dto);
   }
 
   @Patch(':id')

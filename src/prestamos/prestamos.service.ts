@@ -1,3 +1,6 @@
+import { BadRequestException } from '@nestjs/common';
+import { Role } from '@prisma/client';
+import { SolicitarPrestamoDto } from './dto/solicitar-prestamo.dto';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePrestamoDto } from './dto/create-prestamo.dto';
@@ -83,6 +86,108 @@ export class PrestamosService {
 
     return prestamo;
   }
+
+  async solicitar(dto: SolicitarPrestamoDto) {
+
+  const usuario = await this.prisma.usuario.findUnique({
+    where: {
+      id: dto.usuarioId,
+    },
+  });
+
+  if (!usuario) {
+    throw new BadRequestException("Usuario no encontrado");
+  }
+
+  const activos = await this.prisma.prestamo.count({
+    where: {
+      usuarioId: dto.usuarioId,
+      estado: EstadoPrestamo.ACTIVO,
+    },
+  });
+
+  if (activos >= 3) {
+    throw new BadRequestException(
+      "Máximo 3 préstamos activos."
+    );
+  }
+
+  const libro = await this.prisma.libro.findUnique({
+    where: {
+      id: dto.libroId,
+    },
+  });
+
+  if (!libro) {
+    throw new BadRequestException(
+      "Libro no encontrado."
+    );
+  }
+
+  if (!libro.disponibilidad) {
+    throw new BadRequestException(
+      "El libro no está disponible."
+    );
+  }
+
+  let total = libro.costoPrestamo;
+
+  if (usuario.rol === Role.PROFESOR) {
+    total = 0;
+  }
+
+  if (usuario.rol === Role.ESTUDIANTE) {
+    total = libro.costoPrestamo * 0.5;
+  }
+
+  const fechaMax = new Date();
+
+  fechaMax.setDate(fechaMax.getDate() + 10);
+
+  const prestamo = await this.prisma.prestamo.create({
+
+    data:{
+
+      usuarioId:dto.usuarioId,
+
+      fechaMaxDevolucion:fechaMax,
+
+      totalCosto:total,
+
+      libros:{
+        create:{
+          libroId:dto.libroId
+        }
+      }
+
+    },
+
+    include:{
+      usuario:true,
+      libros:{
+        include:{
+          libro:true
+        }
+      }
+    }
+
+  });
+
+  await this.prisma.libro.update({
+
+    where:{
+      id:dto.libroId
+    },
+
+    data:{
+      disponibilidad:false
+    }
+
+  });
+
+  return prestamo;
+
+}
 
   update(id: string, updatePrestamoDto: UpdatePrestamoDto) {
     return this.prisma.prestamo.update({
